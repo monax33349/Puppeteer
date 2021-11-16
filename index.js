@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const axios = require('axios');
 const fs = require('fs');
 const https = require('https');
+require('dotenv').config();
 
 async function fetchId() {
 
@@ -15,14 +16,12 @@ async function fetchId() {
     ]
   });
 
-  const payload = {
-    "username": "Nemuadmin",
-    "password": "nemuuser"
-  };
-
-  const url = 'https://10.28.0.251:9443/NetActSSO/token';
+  const url = `${process.env.HOST}/NetActSSO/token`;
   let token = null;
-  await axios.post(url, payload, {
+  await axios.post(url, {
+    "username": process.env.USER_NAME,
+    "password": process.env.PASSWORD
+      }, {
     headers: {
       'Content-Type': 'application/json'
     },
@@ -36,40 +35,35 @@ async function fetchId() {
   
   if (token) {
     const page = await browser.newPage();
-    //const arrayLogs = [];
 
-    await page.setDefaultNavigationTimeout(50000);
-    await page.goto(`https://10.28.0.251:9443/?token=${token}`, {
+    await page.setDefaultNavigationTimeout(80000);
+    await page.goto(`${process.env.HOST}/?token=${token}`, {
       waitUntil: 'networkidle0'
     });
 
-    page.on('console', async msg => {
+    page.on('console', msg => {
       for (let i = 0; i < msg.args().length; ++i) {
         let message = msg.text();
         if (message.includes('Set session id')) {
           const str = message.split(' ');
           const strIndex = str.indexOf('id');
-          const strId = str[strIndex + 1];
+          const sessionId = str[strIndex + 1];
           const regex = /\r\n/i;
-          await console.log(strId.replace(regex, ''));
-          fs.writeFile('strId.txt', strId.replace(regex, ''), function (err) {
+          console.log(sessionId.replace(regex, ''));
+          fs.writeFile('sessionId.txt', message, function (err) {
             if (err) return console.log(err);
           });
         }
       }
     });
-    //await page.screenshot({ path: "example.png" });
-    // const writeStream = fs.createWriteStream('file.txt');
-    // arrayLogs.forEach(value => writeStream.write(`${value}\n`));
-    // writeStream.end();
+    await page.screenshot({ path: "example.png" });
   }
-
-  //await browser.close();
+  await browser.close();
 }
 const delay = 15 * 60000;
 
-setTimeout(() => {
-  console.log('timeout beyond time');
+setInterval(() => {
+  console.log('new iteration');
   fetchId();
 }, delay);
 
